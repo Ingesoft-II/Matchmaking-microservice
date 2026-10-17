@@ -1,0 +1,42 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: matchmaking-service
+
+matchmaking:
+  cycle-delay-ms: 2000
+  max-wait-sec:
+    ranked: 300
+    arcade: 120
+  region-default: sa-east
+  maps:
+    ranked: ["Bunker", "Refinery", "Terminal"]
+    arcade: ["Arena", "Docks"]
+  rating:
+    default: 1000
+    cache-ttl-sec: 60
+  policy:
+    ranked:
+      base-gap: 100
+      growth-per-sec: 2.0   # |Δrating| <= 100 + 2·espera
+    arcade:
+      max-latency-ms: 120
+  partida-ttl-hours: 3
+
+progress:
+  base-url: http://localhost:9091
+  connect-timeout-ms: 500
+  read-timeout-ms: 1500
+
+orchestrator:
+  base-url: http://localhost:9092
+  connect-timeout-ms: 500
+  read-timeout-ms: 1500
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
