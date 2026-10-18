@@ -1,94 +1,61 @@
 # Matchmaking-microservice
 
-Microservicio **Matchmaking** de *Killer Protocol*: encuentra y agrupa
-jugadores para formar partidas 5 vs 5. Recibe solicitudes de búsqueda, las pone
-en cola por modo de juego, ejecuta un ciclo de emparejamiento cada 2 segundos,
-pide un servidor de juego al orquestador y publica un evento en el broker.
+Servicio de ejemplo para Killer Protocol. Recibe grupos de hasta cinco jugadores, mantiene tickets en memoria y busca formar partidas de diez jugadores en dos equipos de cinco. Ranked usa una política de rating; Arcade aplica un límite de latencia. El proyecto usa Java 21 y Spring Boot.
 
-## Requisitos
+La persistencia, la asignación de servidores y los eventos usan adaptadores en memoria para esta entrega. No hay conexión a Redis, broker, servicio de progreso ni servidores de juego reales.
 
-- **JDK 21** (LTS) o superior
-- **Maven** — el proyecto incluye el *Maven Wrapper* (`mvnw` / `mvnw.cmd`),
-  así que basta con el JDK; no es necesario instalar Maven aparte.
-
-## Cómo ejecutar
-
-**Perfil Entregable** (por defecto; sin Docker ni servicios externos):
+## Ejecutar
 
 ```bash
-# Compilar y correr todas las pruebas (unitarias + arquitectura ArchUnit)
 ./mvnw verify
-
-# Arrancar el servicio con los servidores simulados (perfil demo, hito H10)
-./mvnw spring-boot:run -Dspring-boot.run.profiles=demo
+./mvnw spring-boot:run
 ```
 
-- Servicio: `http://localhost:8082`
-- Documentación de la API (OpenAPI): `http://localhost:8082/swagger-ui.html`
-- Salud: `http://localhost:8082/actuator/health` · Métricas: `http://localhost:8082/actuator/prometheus`
+En Windows puedes usar `mvnw.cmd` en lugar de `./mvnw`. El servicio escucha en `http://localhost:8082`. La API documentada por Springdoc está en `/swagger-ui.html`; salud en `/actuator/health`.
 
-## Estructura del proyecto (arquitectura hexagonal)
+## API mínima
 
-Regla de dependencias: `adapter → application → domain` (nunca al revés).
+`POST /api/matchmaking/tickets` registra un grupo y devuelve su ticket:
 
+```json
+{
+  "playerIds": ["player-1", "player-2"],
+  "mode": "RANKED",
+  "region": "sa-east",
+  "latencyMs": 38
+}
 ```
+
+`GET /api/matchmaking/tickets/{id}` consulta el estado y `DELETE /api/matchmaking/tickets/{id}` cancela un ticket que sigue esperando. `POST /api/matchmaking/cycle` ejecuta un ciclo manual; además, el scheduler ejecuta uno cada dos segundos. La respuesta del ciclo incluye las partidas creadas, con dos equipos de cinco y una dirección de servidor simulada.
+
+Para probar el emparejamiento, registra tickets cuyos grupos sumen exactamente diez jugadores y comparte modo y región. Los partidos Ranked reciben el rating promedio que entrega el adaptador de ratings en memoria (1000 por jugador, configurable en `application.yml`). Las políticas, mapas, límites y frecuencia del ciclo también están en `application.yml`.
+
+## Estructura
+
+La dependencia sigue `adapter → application → domain`.
+
+```text
 src/main/java/com/killerprotocol/matchmaking/
-├── MatchmakingApplication.java
-├── domain/                          # Núcleo: sin Spring, sin infraestructura
-│   ├── model/                       #   Ticket, Party, Partida, Jugador, ServerInfo,
-│   │                                #   ReglasAntiCheat, GameMode, IDs
-│   ├── state/                       #   State: TicketState, Waiting, Matched, Cancelled, Expired
-│   ├── policy/                      #   Strategy: RatingPolicy, RankedPolicy, ArcadePolicy
-│   │                                #   Factory Method: RatingPolicyFactory
-│   ├── builder/                     #   Builder: PartidaBuilder, PartidaClasificatoriaBuilder,
-│   │                                #   PartidaArcadeBuilder
-│   └── exception/
-├── application/
-│   ├── port/in/                     #   FindMatchUseCase, CancelUseCase, ReconnectUseCase,
-│   │                                #   RunCycleUseCase, GetTicketUseCase
-│   ├── port/out/                    #   MatchmakingStore, ServerAllocator, EventPublisher,
-│   │                                #   RatingProvider
-│   ├── service/                     #   FindMatchService, CancelService, ReconnectService,
-│   │                                #   RunCycleService (clases Java normales, sin @Service)
-│   └── event/                       #   PartidaCreadaEvent, TicketCanceladoEvent, TicketExpiradoEvent
-├── adapter/
-│   ├── in/web/                      #   MatchmakingController, dto/*, ApiExceptionHandler
-│   ├── in/scheduler/                #   CycleScheduler (@Scheduled cada 2 s)
-│   ├── out/redis/                   #   RedisStore (Adapter), RedisClient (Adaptee), InMemoryRedisClient
-│   ├── out/orchestrator/            #   OrchestratorHttp
-│   ├── out/broker/                  #   BrokerPublisher, BrokerClient, InMemoryBrokerClient
-│   └── out/progress/                #   ProgressClient, CachedRatingProvider (Decorator)
-├── config/                          #   MatchmakingConfig (raíz de composición),
-│                                    #   MatchmakingProperties, HttpClientsConfig
-└── demo/                            #   StubServers (Progreso y Orquestador simulados, perfil demo)
+├── domain/       # Ticket, Party, Partida, estados, políticas y builders
+├── application/  # Casos de uso, puertos y servicios de aplicación
+├── adapter/in/   # API REST y scheduler
+├── adapter/out/  # Almacenamiento, asignador, eventos y rating en memoria
+└── config/       # Composición de servicios y políticas
 ```
 
-## Tabla patrón → archivo
+## Patrones de diseño
 
-Ruta base: `src/main/java/com/killerprotocol/matchmaking/`
+Ruta base: `src/main/java/com/killerprotocol/matchmaking/`.
 
-| Familia | Patrón | Rol | Archivo / clase |
-|---|---|---|---|
-| Creacional | Builder | Product | `domain/model/Partida.java` |
-| | | Builder (interfaz) | `domain/builder/PartidaBuilder.java` |
-| | | Concrete Builders | `domain/builder/PartidaClasificatoriaBuilder.java`, `domain/builder/PartidaArcadeBuilder.java` |
-| | | Director / Client | `application/service/RunCycleService.java` |
-| Creacional | Factory Method | Creator | `domain/policy/RatingPolicyFactory.java` |
-| | | Product | `domain/policy/RatingPolicy.java` |
-| Estructural | Adapter | Target | `application/port/out/MatchmakingStore.java` |
-| | | Adapter | `adapter/out/redis/RedisStore.java` |
-| | | Adaptee | `adapter/out/redis/RedisClient.java` (+ `InMemoryRedisClient.java`) |
-| | | Client | `application/service/FindMatchService.java`, `CancelService.java`, `ReconnectService.java`, `RunCycleService.java` |
-| Estructural | Decorator | Component | `application/port/out/RatingProvider.java` |
-| | | ConcreteComponent | `adapter/out/progress/ProgressClient.java` |
-| | | ConcreteDecorator | `adapter/out/progress/CachedRatingProvider.java` |
-| | | Client | `application/service/RunCycleService.java` |
-| Comportamiento | Strategy | Strategy | `domain/policy/RatingPolicy.java` |
-| | | Concrete Strategies | `domain/policy/RankedPolicy.java`, `domain/policy/ArcadePolicy.java` |
-| | | Context | `application/service/RunCycleService.java` |
-| Comportamiento | State | Context | `domain/model/Ticket.java` |
-| | | State | `domain/state/TicketState.java` |
-| | | Concrete States | `domain/state/Waiting.java`, `Matched.java`, `Cancelled.java`, `Expired.java` |
+| Patrón | Participantes principales |
+|---|---|
+| Strategy | `domain/policy/RatingPolicy`, `RankedPolicy`, `ArcadePolicy`; el contexto es `application/service/RunCycleService` |
+| State | `domain/model/Ticket`, `domain/state/TicketState`, `Waiting`, `Matched`, `Cancelled`, `Expired` |
+| Factory Method | `domain/policy/RatingPolicyCreator`, `ConfiguredRatingPolicyFactory`, `FixedRatingPolicyFactory`; el producto es `RatingPolicy` |
+| Builder | `domain/model/Partida`, `domain/builder/PartidaBuilder`, `RankedPartidaBuilder`, `ArcadePartidaBuilder`; el servicio de ciclo dirige la construcción |
+| Adapter | Puerto `application/port/out/MatchmakingStore`; adaptador `adapter/out/memory/InMemoryMatchmakingStore` |
+| Decorator | Componente `application/port/out/RatingProvider`; `InMemoryRatingProvider` y `CachedRatingProvider` en `adapter/out/progress` |
 
+## Pruebas
 
-
+`mvnw verify` ejecuta pruebas de dominio, ciclo de emparejamiento y reglas ArchUnit. `RunCycleServiceTest` prueba el armado 5 vs. 5, que no se cree una partida con menos de diez jugadores y que una nueva Strategy se pueda registrar sin cambiar el servicio de ciclo.

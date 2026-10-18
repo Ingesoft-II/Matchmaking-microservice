@@ -12,6 +12,9 @@ public record Party(PartyId id, List<PlayerId> members) {
         if (members == null || members.isEmpty()) {
             throw new IllegalArgumentException("Un party debe tener al menos 1 jugador.");
         }
+        if (members.stream().anyMatch(java.util.Objects::isNull)) {
+            throw new IllegalArgumentException("Un party no puede contener jugadores nulos.");
+        }
         if (members.size() > 5) {
             throw new IllegalArgumentException("Un party no puede tener más de 5 jugadores.");
         }
