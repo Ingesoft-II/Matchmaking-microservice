@@ -2,6 +2,9 @@ package com.killerprotocol.matchmaking.adapter.out.memory;
 
 import com.killerprotocol.matchmaking.application.port.out.MatchmakingStore;
 import com.killerprotocol.matchmaking.domain.model.GameMode;
+import com.killerprotocol.matchmaking.domain.model.Partida;
+import com.killerprotocol.matchmaking.domain.model.PartidaId;
+import com.killerprotocol.matchmaking.domain.model.PlayerId;
 import com.killerprotocol.matchmaking.domain.model.Ticket;
 import com.killerprotocol.matchmaking.domain.model.TicketId;
 import java.util.Comparator;
@@ -14,13 +17,40 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class InMemoryMatchmakingStore implements MatchmakingStore {
     private final ConcurrentMap<TicketId, Ticket> tickets = new ConcurrentHashMap<>();
-    @Override public void save(Ticket ticket) { tickets.put(ticket.id(), ticket); }
-    @Override public List<Ticket> findWaiting(GameMode mode) { return findWaiting(mode, null); }
-    @Override public List<Ticket> findWaiting(GameMode mode, String region) {
+    private final ConcurrentMap<PartidaId, Partida> matches = new ConcurrentHashMap<>();
+
+    @Override
+    public void save(Ticket ticket) {
+        tickets.put(ticket.id(), ticket);
+    }
+
+    @Override
+    public List<Ticket> findWaiting(GameMode mode) {
+        return findWaiting(mode, null);
+    }
+
+    @Override
+    public List<Ticket> findWaiting(GameMode mode, String region) {
         return tickets.values().stream()
                 .filter(t -> t.mode() == mode && (region == null || t.region().equals(region)) && t.estado().name().equals("WAITING"))
                 .sorted(Comparator.comparing(Ticket::createdAt).thenComparing(t -> t.id().value()))
                 .toList();
     }
-    @Override public Optional<Ticket> findById(TicketId id) { return Optional.ofNullable(tickets.get(id)); }
+
+    @Override
+    public Optional<Ticket> findById(TicketId id) {
+        return Optional.ofNullable(tickets.get(id));
+    }
+
+    @Override
+    public void saveMatch(Partida partida) {
+        matches.put(partida.id(), partida);
+    }
+
+    @Override
+    public Optional<Partida> findActiveMatch(PlayerId playerId) {
+        return matches.values().stream()
+                .filter(p -> p.teamA().players().contains(playerId) || p.teamB().players().contains(playerId))
+                .findFirst();
+    }
 }
