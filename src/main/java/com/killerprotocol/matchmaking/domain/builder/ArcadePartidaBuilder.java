@@ -12,7 +12,7 @@ public final class ArcadePartidaBuilder implements PartidaBuilder {
     private Team teamB;
     private Instant createdAt;
     @Override public PartidaBuilder id(PartidaId value) { id = value; return this; }
-    @Override public PartidaBuilder mode(GameMode value) { if (value != GameMode.ARCADE) throw new IllegalArgumentException("El builder arcade requiere modo ARCADE."); return this; }
+    @Override public PartidaBuilder mode(GameMode value) { if (value != GameMode.ARCADE) throw new IllegalArgumentException("Se requiere modo ARCADE."); return this; }
     @Override public PartidaBuilder map(String value) { map = value; return this; }
     @Override public PartidaBuilder region(String value) { region = value; return this; }
     @Override public PartidaBuilder serverAddress(String value) { serverAddress = value; return this; }

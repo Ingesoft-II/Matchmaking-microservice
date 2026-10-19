@@ -7,19 +7,19 @@ public record Party(PartyId id, List<PlayerId> members) {
 
     public Party {
         if (id == null) {
-            throw new IllegalArgumentException("El party requiere un identificador.");
+            throw new IllegalArgumentException("La partida requiere un identificador.");
         }
         if (members == null || members.isEmpty()) {
-            throw new IllegalArgumentException("Un party debe tener al menos 1 jugador.");
+            throw new IllegalArgumentException("La partida debe tener al menos 1 jugador.");
         }
         if (members.stream().anyMatch(java.util.Objects::isNull)) {
-            throw new IllegalArgumentException("Un party no puede contener jugadores nulos.");
+            throw new IllegalArgumentException("La partida no puede contener jugadores nulos.");
         }
         if (members.size() > 5) {
-            throw new IllegalArgumentException("Un party no puede tener más de 5 jugadores.");
+            throw new IllegalArgumentException("La partida no puede tener más de 5 jugadores.");
         }
         if (new HashSet<>(members).size() != members.size()) {
-            throw new IllegalArgumentException("Un party no puede tener jugadores duplicados.");
+            throw new IllegalArgumentException("La partida no puede tener jugadores duplicados.");
         }
         members = List.copyOf(members);
     }
