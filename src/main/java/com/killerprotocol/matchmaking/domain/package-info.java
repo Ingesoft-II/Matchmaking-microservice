@@ -1,0 +1,1 @@
+package com.killerprotocol.matchmaking.domain;
