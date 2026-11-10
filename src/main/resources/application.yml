@@ -5,6 +5,11 @@ spring:
   application:
     name: matchmaking-service
 
+springdoc:
+  swagger-ui:
+    url: /openapi.yaml
+    disable-swagger-default-url: true
+
 matchmaking:
   cycle-delay-ms: 2000
   max-wait-sec:

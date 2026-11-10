@@ -15,7 +15,10 @@ En Windows usa `mvnw.cmd` en lugar de `./mvnw`.
 
 - Servicio: `http://localhost:8082`
 - API interactiva (Springdoc): `http://localhost:8082/swagger-ui.html`
+- Contrato OpenAPI publicado por el backend: `http://localhost:8082/openapi.yaml`
 - Salud: `/actuator/health` · Métricas Prometheus: `/actuator/prometheus`
+
+Swagger UI carga el contrato `openapi.yaml` del repositorio. El esquema `bearerAuth` está definido en el contrato, pero esta versión del microservicio no implementa autenticación; por eso las operaciones no exigen Bearer.
 
 ## API mínima
 

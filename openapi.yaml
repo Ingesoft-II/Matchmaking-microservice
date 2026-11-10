@@ -1,0 +1,290 @@
+openapi: 3.0.3
+info:
+  title: Killer Protocol Matchmaking API
+  version: 1.0.0
+  description: API REST para encolar jugadores, consultar tickets y ejecutar el emparejamiento.
+servers:
+  - url: http://localhost:8082
+    description: Servicio local
+tags:
+  - name: Matchmaking
+    description: Operaciones de tickets, reconexión y ciclos de emparejamiento
+security: []
+paths:
+  /api/matchmaking/tickets:
+    post:
+      tags: [Matchmaking]
+      summary: Encolar un grupo de jugadores
+      description: Crea un ticket para un grupo de uno a cinco jugadores.
+      operationId: enqueuePlayers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FindMatchRequest'
+            example:
+              playerIds: [player-1, player-2]
+              mode: RANKED
+              region: sa-east
+              latencyMs: 38
+      responses:
+        '201':
+          description: Ticket creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketView'
+              example:
+                id: ticket-123
+                status: WAITING
+                rating: 1000
+                partidaId: null
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '415':
+          description: El cuerpo debe enviarse como application/json
+  /api/matchmaking/tickets/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: Identificador del ticket
+        schema:
+          type: string
+        example: ticket-123
+    get:
+      tags: [Matchmaking]
+      summary: Consultar un ticket
+      operationId: getTicket
+      responses:
+        '200':
+          description: Estado actual del ticket
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketView'
+              example:
+                id: ticket-123
+                status: MATCHED
+                rating: 1000
+                partidaId: match-456
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Matchmaking]
+      summary: Cancelar un ticket
+      description: Solo se puede cancelar un ticket que todavía está esperando.
+      operationId: cancelTicket
+      responses:
+        '200':
+          description: Ticket cancelado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketView'
+              example:
+                id: ticket-123
+                status: CANCELLED
+                rating: 1000
+                partidaId: null
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/matchmaking/reconnect/{playerId}:
+    get:
+      tags: [Matchmaking]
+      summary: Obtener la partida activa de un jugador
+      operationId: reconnectPlayer
+      parameters:
+        - name: playerId
+          in: path
+          required: true
+          description: Identificador del jugador
+          schema:
+            type: string
+          example: player-1
+      responses:
+        '200':
+          description: Partida activa encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Match'
+              example:
+                id: {value: match-456}
+                mode: RANKED
+                map: Bunker
+                region: sa-east
+                serverAddress: memory://server-1
+                teamA:
+                  players: [{value: player-1}, {value: player-2}, {value: player-3}, {value: player-4}, {value: player-5}]
+                teamB:
+                  players: [{value: player-6}, {value: player-7}, {value: player-8}, {value: player-9}, {value: player-10}]
+                createdAt: '2026-11-10T12:00:00Z'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /api/matchmaking/cycle:
+    post:
+      tags: [Matchmaking]
+      summary: Ejecutar manualmente un ciclo de emparejamiento
+      description: Busca tickets compatibles y devuelve las partidas que se formaron. El ciclo también se ejecuta automáticamente cada dos segundos.
+      operationId: runMatchmakingCycle
+      responses:
+        '200':
+          description: Partidas formadas; la lista puede estar vacía
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Match'
+              example:
+                - id: {value: match-456}
+                  mode: RANKED
+                  map: Bunker
+                  region: sa-east
+                  serverAddress: memory://server-1
+                  teamA:
+                    players: [{value: player-1}, {value: player-2}, {value: player-3}, {value: player-4}, {value: player-5}]
+                  teamB:
+                    players: [{value: player-6}, {value: player-7}, {value: player-8}, {value: player-9}, {value: player-10}]
+                  createdAt: '2026-11-10T12:00:00Z'
+        '409':
+          $ref: '#/components/responses/Conflict'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Esquema Bearer JWT reservado para cuando el servicio habilite autenticación.
+  schemas:
+    FindMatchRequest:
+      type: object
+      required: [playerIds, mode, region, latencyMs]
+      properties:
+        playerIds:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+          example: [player-1, player-2]
+        mode:
+          $ref: '#/components/schemas/GameMode'
+        region:
+          type: string
+          minLength: 1
+          example: sa-east
+        latencyMs:
+          type: integer
+          minimum: 0
+          example: 38
+    TicketView:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          example: ticket-123
+        status:
+          type: string
+          description: Estado actual del ticket
+          enum: [WAITING, MATCHED, CANCELLED, EXPIRED]
+          example: WAITING
+        rating:
+          type: integer
+          nullable: true
+          example: 1000
+        partidaId:
+          type: string
+          nullable: true
+          example: match-456
+    GameMode:
+      type: string
+      enum: [RANKED, ARCADE]
+      example: RANKED
+    PlayerId:
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: string
+          example: player-1
+    MatchId:
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: string
+          example: match-456
+    Team:
+      type: object
+      required: [players]
+      properties:
+        players:
+          type: array
+          minItems: 5
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/PlayerId'
+    Match:
+      type: object
+      required: [id, mode, map, region, serverAddress, teamA, teamB, createdAt]
+      properties:
+        id:
+          $ref: '#/components/schemas/MatchId'
+        mode:
+          $ref: '#/components/schemas/GameMode'
+        map:
+          type: string
+          example: Bunker
+        region:
+          type: string
+          example: sa-east
+        serverAddress:
+          type: string
+          example: memory://server-1
+        teamA:
+          $ref: '#/components/schemas/Team'
+        teamB:
+          $ref: '#/components/schemas/Team'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-10T12:00:00Z'
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: El identificador del ticket no puede ser nulo o vacío.
+  responses:
+    BadRequest:
+      description: Solicitud inválida o datos que no superan la validación
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: latencyMs debe ser mayor o igual a cero.
+    NotFound:
+      description: No se encontró el ticket o no hay partida activa para el jugador
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: 'No hay partida activa para el jugador: player-1'
+    Conflict:
+      description: La transición solicitada no es válida para el estado actual
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: No se puede cancelar un ticket que ya fue emparejado.
