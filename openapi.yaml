@@ -4,6 +4,8 @@ info:
   version: 1.0.0
   description: API REST para encolar jugadores, consultar tickets y ejecutar el emparejamiento.
 servers:
+  - url: /
+    description: Servidor actual
   - url: http://localhost:8082
     description: Servicio local
 tags:

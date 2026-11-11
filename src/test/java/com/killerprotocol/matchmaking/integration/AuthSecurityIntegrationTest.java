@@ -1,6 +1,10 @@
 package com.killerprotocol.matchmaking.integration;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -153,6 +157,46 @@ class AuthSecurityIntegrationTest {
                         .content(rankedPayload))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("WAITING"));
+    }
+
+    @Test
+    void erroresDeValidacionUsanFormatoUnicoSinExponerTrazasInternas() throws Exception {
+        String invalidRegisterPayload = """
+                {
+                  "playerId": "",
+                  "email": "correo-invalido",
+                  "password": "123",
+                  "role": "CASUAL"
+                }
+                """;
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidRegisterPayload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").isString())
+                .andExpect(jsonPath("$.error", not(containsString("org.springframework"))))
+                .andExpect(jsonPath("$.error", not(containsString("com.killerprotocol"))));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{json-malformado"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("El cuerpo de la solicitud es inválido o tiene un formato incorrecto."));
+    }
+
+    @Test
+    void corsPermiteSoloOrigenesDeClientesAutorizadosYRechazaOtros() throws Exception {
+        mockMvc.perform(options("/api/auth/login")
+                        .header(HttpHeaders.ORIGIN, "http://localhost:3000")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:3000"));
+
+        mockMvc.perform(options("/api/auth/login")
+                        .header(HttpHeaders.ORIGIN, "https://sitio-externo-no-autorizado.com")
+                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST"))
+                .andExpect(status().isForbidden());
     }
 
     private String registerAndLogin(Role role) throws Exception {
