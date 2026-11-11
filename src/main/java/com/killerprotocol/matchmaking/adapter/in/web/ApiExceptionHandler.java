@@ -1,5 +1,6 @@
 package com.killerprotocol.matchmaking.adapter.in.web;
 
+import com.killerprotocol.matchmaking.domain.exception.AccesoDenegadoException;
 import com.killerprotocol.matchmaking.domain.exception.CredencialesInvalidasException;
 import com.killerprotocol.matchmaking.domain.exception.TransicionInvalidaException;
 import com.killerprotocol.matchmaking.domain.exception.UsuarioYaExisteException;
@@ -19,6 +20,10 @@ public class ApiExceptionHandler {
     @ExceptionHandler(CredencialesInvalidasException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public Map<String, String> unauthorized(CredencialesInvalidasException exception) { return Map.of("error", exception.getMessage()); }
+
+    @ExceptionHandler(AccesoDenegadoException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, String> forbidden(AccesoDenegadoException exception) { return Map.of("error", exception.getMessage()); }
 
     @ExceptionHandler(NoSuchElementException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)

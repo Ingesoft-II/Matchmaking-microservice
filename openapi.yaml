@@ -109,8 +109,68 @@ paths:
                 partidaId: null
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '415':
           description: El cuerpo debe enviarse como application/json
+  /api/matchmaking/tickets/arcade:
+    post:
+      tags: [Matchmaking]
+      summary: Encolar en partida rápida (Exclusivo rol CASUAL)
+      operationId: enqueueArcadePlayers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueueRequest'
+            example:
+              playerIds: [player-1, player-2]
+              region: sa-east
+              latencyMs: 38
+      responses:
+        '201':
+          description: Ticket arcade creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /api/matchmaking/tickets/ranked:
+    post:
+      tags: [Matchmaking]
+      summary: Encolar en partida clasificatoria (Exclusivo rol COMPETITIVO)
+      operationId: enqueueRankedPlayers
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QueueRequest'
+            example:
+              playerIds: [player-1, player-2]
+              region: sa-east
+              latencyMs: 38
+      responses:
+        '201':
+          description: Ticket ranked creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketView'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /api/matchmaking/tickets/{id}:
     parameters:
       - name: id
@@ -195,7 +255,7 @@ paths:
   /api/matchmaking/cycle:
     post:
       tags: [Matchmaking]
-      summary: Ejecutar manualmente un ciclo de emparejamiento
+      summary: Ejecutar manualmente un ciclo de emparejamiento (Exclusivo rol MODERADOR)
       description: Busca tickets compatibles y devuelve las partidas que se formaron. El ciclo también se ejecuta automáticamente cada dos segundos.
       operationId: runMatchmakingCycle
       responses:
@@ -218,6 +278,10 @@ paths:
                   teamB:
                     players: [{value: player-6}, {value: player-7}, {value: player-8}, {value: player-9}, {value: player-10}]
                   createdAt: '2026-11-10T12:00:00Z'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '409':
           $ref: '#/components/responses/Conflict'
 components:
@@ -294,6 +358,26 @@ components:
           type: integer
           format: int64
           example: 900
+    QueueRequest:
+      type: object
+      required: [playerIds, region, latencyMs]
+      properties:
+        playerIds:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+          example: [player-1, player-2]
+        region:
+          type: string
+          minLength: 1
+          example: sa-east
+        latencyMs:
+          type: integer
+          minimum: 0
+          example: 38
     FindMatchRequest:
       type: object
       required: [playerIds, mode, region, latencyMs]
@@ -412,7 +496,15 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
           example:
-            error: Credenciales inválidas.
+            error: No autenticado. Se requiere un token Bearer válido.
+    Forbidden:
+      description: El rol del usuario autenticado no tiene permiso para esta operación
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Acceso denegado. No tienes permisos suficientes para este recurso.
     NotFound:
       description: No se encontró el ticket o no hay partida activa para el jugador
       content:

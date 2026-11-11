@@ -5,6 +5,7 @@ import com.killerprotocol.matchmaking.application.port.in.FindMatchUseCase;
 import com.killerprotocol.matchmaking.application.port.in.GetTicketUseCase;
 import com.killerprotocol.matchmaking.application.port.in.ReconnectUseCase;
 import com.killerprotocol.matchmaking.application.port.in.RunCycleUseCase;
+import com.killerprotocol.matchmaking.domain.exception.AccesoDenegadoException;
 import com.killerprotocol.matchmaking.domain.model.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -39,10 +41,29 @@ public class MatchmakingController {
 
     @PostMapping("/tickets")
     @ResponseStatus(HttpStatus.CREATED)
-    public TicketView enqueue(@Valid @RequestBody FindMatchRequest request) {
+    public TicketView enqueue(@Valid @RequestBody FindMatchRequest request, Authentication authentication) {
+        if (request.mode() == GameMode.RANKED && !hasRole(authentication, "ROLE_COMPETITIVO")) {
+            throw new AccesoDenegadoException("Solo los jugadores competitivos pueden entrar a la cola clasificatoria.");
+        }
         Party party = new Party(new PartyId("party-" + UUID.randomUUID()),
                 request.playerIds().stream().map(PlayerId::new).toList());
         return TicketView.from(findMatch.findMatch(party, request.mode(), request.region(), request.latencyMs()));
+    }
+
+    @PostMapping("/tickets/arcade")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TicketView enqueueArcade(@Valid @RequestBody QueueRequest request) {
+        Party party = new Party(new PartyId("party-" + UUID.randomUUID()),
+                request.playerIds().stream().map(PlayerId::new).toList());
+        return TicketView.from(findMatch.findMatch(party, GameMode.ARCADE, request.region(), request.latencyMs()));
+    }
+
+    @PostMapping("/tickets/ranked")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TicketView enqueueRanked(@Valid @RequestBody QueueRequest request) {
+        Party party = new Party(new PartyId("party-" + UUID.randomUUID()),
+                request.playerIds().stream().map(PlayerId::new).toList());
+        return TicketView.from(findMatch.findMatch(party, GameMode.RANKED, request.region(), request.latencyMs()));
     }
 
     @GetMapping("/tickets/{id}")
@@ -66,9 +87,21 @@ public class MatchmakingController {
         return runCycle.runCycle();
     }
 
+    private boolean hasRole(Authentication authentication, String expectedAuthority) {
+        if (authentication == null || authentication.getAuthorities() == null) {
+            return false;
+        }
+        return authentication.getAuthorities().stream()
+                .anyMatch(authority -> expectedAuthority.equals(authority.getAuthority()));
+    }
+
     public record FindMatchRequest(@NotEmpty @Size(max = 5) List<@NotBlank String> playerIds,
                                    @NotNull GameMode mode, @NotBlank String region,
                                    @Min(0) int latencyMs) { }
+
+    public record QueueRequest(@NotEmpty @Size(max = 5) List<@NotBlank String> playerIds,
+                               @NotBlank String region,
+                               @Min(0) int latencyMs) { }
 
     public record TicketView(String id, String status, Integer rating, String partidaId) {
         static TicketView from(Ticket ticket) {

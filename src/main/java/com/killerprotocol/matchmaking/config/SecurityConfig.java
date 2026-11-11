@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -32,7 +33,7 @@ public class SecurityConfig {
                             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                            response.getWriter().write("{\"error\":\"Acceso denegado.\"}");
+                            response.getWriter().write("{\"error\":\"Acceso denegado. No tienes permisos suficientes para este recurso.\"}");
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
@@ -44,6 +45,10 @@ public class SecurityConfig {
                                 "/openapi.yaml",
                                 "/actuator/**"
                         ).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/matchmaking/tickets/arcade").hasRole("CASUAL")
+                        .requestMatchers(HttpMethod.POST, "/api/matchmaking/tickets/ranked").hasRole("COMPETITIVO")
+                        .requestMatchers(HttpMethod.POST, "/api/matchmaking/cycle").hasRole("MODERADOR")
+                        .requestMatchers(HttpMethod.POST, "/api/matchmaking/tickets").hasAnyRole("CASUAL", "COMPETITIVO")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

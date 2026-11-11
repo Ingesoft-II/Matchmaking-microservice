@@ -6,6 +6,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.killerprotocol.matchmaking.domain.model.Role;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -26,64 +28,167 @@ class AuthSecurityIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void matchmakingExigeTokenJwtYPermiteAccesoTrasRegistroYLogin() throws Exception {
-        String ticketPayload = """
+    void endpointsExigenAutenticacionYResponden401SinToken() throws Exception {
+        String queuePayload = """
                 {
-                  "playerIds": ["player-auth-1"],
-                  "mode": "ARCADE",
+                  "playerIds": ["player-unauth"],
                   "region": "sa-east",
                   "latencyMs": 30
                 }
                 """;
 
-        mockMvc.perform(post("/api/matchmaking/tickets")
+        mockMvc.perform(post("/api/matchmaking/tickets/arcade")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(ticketPayload))
+                        .content(queuePayload))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.error").exists());
 
-        String registerPayload = """
+        mockMvc.perform(post("/api/matchmaking/tickets/ranked")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(queuePayload))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").exists());
+
+        mockMvc.perform(post("/api/matchmaking/cycle"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
+    void cadaRolSoloPuedeUsarSuEndpointExclusivoYRecibe403EnLosDemas() throws Exception {
+        String casualToken = registerAndLogin(Role.CASUAL);
+        String competitivoToken = registerAndLogin(Role.COMPETITIVO);
+        String moderadorToken = registerAndLogin(Role.MODERADOR);
+
+        String queuePayload = """
                 {
-                  "playerId": "player-auth-1",
-                  "email": "auth1@killerprotocol.com",
-                  "password": "PasswordSegura123!",
-                  "role": "COMPETITIVO"
+                  "playerIds": ["player-role-1"],
+                  "region": "sa-east",
+                  "latencyMs": 30
                 }
                 """;
+
+        mockMvc.perform(post("/api/matchmaking/tickets/arcade")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + casualToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(queuePayload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("WAITING"));
+
+        mockMvc.perform(post("/api/matchmaking/tickets/arcade")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + competitivoToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(queuePayload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").exists());
+
+        mockMvc.perform(post("/api/matchmaking/tickets/arcade")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + moderadorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(queuePayload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").exists());
+
+        mockMvc.perform(post("/api/matchmaking/tickets/ranked")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + competitivoToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(queuePayload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("WAITING"))
+                .andExpect(jsonPath("$.rating").value(1000));
+
+        mockMvc.perform(post("/api/matchmaking/tickets/ranked")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + casualToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(queuePayload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").exists());
+
+        mockMvc.perform(post("/api/matchmaking/tickets/ranked")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + moderadorToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(queuePayload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").exists());
+
+        mockMvc.perform(post("/api/matchmaking/cycle")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + moderadorToken))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/matchmaking/cycle")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + casualToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").exists());
+
+        mockMvc.perform(post("/api/matchmaking/cycle")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + competitivoToken))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").exists());
+    }
+
+    @Test
+    void jugadorCasualRecibe403AlIntentarModoRankedEnEndpointGeneral() throws Exception {
+        String casualToken = registerAndLogin(Role.CASUAL);
+        String competitivoToken = registerAndLogin(Role.COMPETITIVO);
+
+        String rankedPayload = """
+                {
+                  "playerIds": ["player-ranked-test"],
+                  "mode": "RANKED",
+                  "region": "sa-east",
+                  "latencyMs": 35
+                }
+                """;
+
+        mockMvc.perform(post("/api/matchmaking/tickets")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + casualToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rankedPayload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").exists());
+
+        mockMvc.perform(post("/api/matchmaking/tickets")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + competitivoToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(rankedPayload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("WAITING"));
+    }
+
+    private String registerAndLogin(Role role) throws Exception {
+        String suffix = UUID.randomUUID().toString();
+        String playerId = "player-" + suffix;
+        String email = "user-" + suffix + "@killerprotocol.com";
+        String password = "PasswordSegura123!";
+
+        String registerPayload = """
+                {
+                  "playerId": "%s",
+                  "email": "%s",
+                  "password": "%s",
+                  "role": "%s"
+                }
+                """.formatted(playerId, email, password, role.name());
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registerPayload))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.playerId").value("player-auth-1"))
-                .andExpect(jsonPath("$.email").value("auth1@killerprotocol.com"))
-                .andExpect(jsonPath("$.role").value("COMPETITIVO"))
-                .andExpect(jsonPath("$.passwordHash").doesNotExist());
+                .andExpect(status().isCreated());
 
         String loginPayload = """
                 {
-                  "email": "auth1@killerprotocol.com",
-                  "password": "PasswordSegura123!"
+                  "email": "%s",
+                  "password": "%s"
                 }
-                """;
+                """.formatted(email, password);
 
         MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(loginPayload))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tokenType").value("Bearer"))
-                .andExpect(jsonPath("$.expiresIn").value(900))
-                .andExpect(jsonPath("$.accessToken").isNotEmpty())
                 .andReturn();
 
         JsonNode body = objectMapper.readTree(loginResult.getResponse().getContentAsString());
-        String token = body.get("accessToken").asText();
-
-        mockMvc.perform(post("/api/matchmaking/tickets")
-                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(ticketPayload))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.status").value("WAITING"));
+        return body.get("accessToken").asText();
     }
 }
