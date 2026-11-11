@@ -1,0 +1,19 @@
+$kind: http-request
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "{{competitiveEmail}}",
+      "password": "{{password}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('login COMPETITIVO: 200', () => pm.response.to.have.status(200));
+      const b = pm.response.json(); pm.expect(b.accessToken).to.be.a('string').and.not.empty; pm.collectionVariables.set('competitiveToken', b.accessToken);
+    language: text/javascript
+order: 6000

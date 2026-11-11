@@ -1,0 +1,21 @@
+$kind: http-request
+url: "{{baseUrl}}/api/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "playerId": "{{casualPlayer}}",
+      "email": "{{casualEmail}}",
+      "password": "{{password}}",
+      "role": "CASUAL"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('registro CASUAL: 201', () => pm.response.to.have.status(201));
+      pm.test('devuelve rol y jugador', () => { const b = pm.response.json(); pm.expect(b.role).to.eql('CASUAL'); pm.expect(b.playerId).to.eql(pm.collectionVariables.get('casualPlayer')); });
+    language: text/javascript
+order: 2000

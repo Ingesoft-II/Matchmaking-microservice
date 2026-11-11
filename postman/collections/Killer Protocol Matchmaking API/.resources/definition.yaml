@@ -1,0 +1,16 @@
+$kind: collection
+description: "Pruebas de API en orden: registro/login, autorización 401/403, CRUD de tickets y validaciones 400. Configure baseUrl en el environment para usar cualquier host accesible."
+variables:
+  baseUrl: http://localhost:8082
+  runId: ""
+  password: PasswordSegura123!
+  casualToken: ""
+  competitiveToken: ""
+  moderatorToken: ""
+  ticketId: ""
+  casualPlayer: ""
+  competitivePlayer: ""
+  moderatorPlayer: ""
+  casualEmail: ""
+  competitiveEmail: ""
+  moderatorEmail: ""

@@ -1,0 +1,12 @@
+$kind: http-request
+url: "{{baseUrl}}/api/matchmaking/tickets/{{ticketId}}"
+method: GET
+headers:
+  Authorization: Bearer {{casualToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('ticket cancelado sigue consultable: 200', () => pm.response.to.have.status(200));
+      pm.test('estado CANCELLED', () => pm.expect(pm.response.json().status).to.eql('CANCELLED'));
+    language: text/javascript
+order: 14000

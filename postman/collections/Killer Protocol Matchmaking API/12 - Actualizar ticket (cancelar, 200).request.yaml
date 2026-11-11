@@ -1,0 +1,12 @@
+$kind: http-request
+url: "{{baseUrl}}/api/matchmaking/tickets/{{ticketId}}"
+method: DELETE
+headers:
+  Authorization: Bearer {{casualToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('cancelar ticket: 200', () => pm.response.to.have.status(200));
+      pm.test('estado CANCELLED', () => pm.expect(pm.response.json().status).to.eql('CANCELLED'));
+    language: text/javascript
+order: 12000

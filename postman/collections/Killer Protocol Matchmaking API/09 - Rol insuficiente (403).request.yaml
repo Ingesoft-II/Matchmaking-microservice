@@ -1,0 +1,16 @@
+$kind: http-request
+url: "{{baseUrl}}/api/matchmaking/tickets/ranked"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{casualToken}}
+body:
+  type: text
+  content: '{"playerIds":["{{casualPlayer}}"],"region":"sa-east","latencyMs":30}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('rol CASUAL en Ranked: 403', () => pm.response.to.have.status(403));
+      pm.test('error JSON', () => pm.expect(pm.response.json().error).to.be.a('string'));
+    language: text/javascript
+order: 9000

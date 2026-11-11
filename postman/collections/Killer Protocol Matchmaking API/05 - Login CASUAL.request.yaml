@@ -1,0 +1,19 @@
+$kind: http-request
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "{{casualEmail}}",
+      "password": "{{password}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('login CASUAL: 200', () => pm.response.to.have.status(200));
+      const b = pm.response.json(); pm.expect(b.accessToken).to.be.a('string').and.not.empty; pm.collectionVariables.set('casualToken', b.accessToken);
+    language: text/javascript
+order: 5000

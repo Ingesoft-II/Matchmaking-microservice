@@ -1,0 +1,16 @@
+$kind: http-request
+url: "{{baseUrl}}/actuator/health"
+method: GET
+scripts:
+  - type: beforeRequest
+    code: |-
+      const id = pm.variables.replaceIn('{{$guid}}').replace(/-/g, '').slice(0, 12);
+      pm.collectionVariables.set('runId', id);
+      pm.collectionVariables.set('casualPlayer', 'casual-' + id);
+      pm.collectionVariables.set('competitivePlayer', 'comp-' + id);
+      pm.collectionVariables.set('moderatorPlayer', 'mod-' + id);
+      pm.collectionVariables.set('casualEmail', 'casual-' + id + '@example.com');
+      pm.collectionVariables.set('competitiveEmail', 'comp-' + id + '@example.com');
+      pm.collectionVariables.set('moderatorEmail', 'mod-' + id + '@example.com');
+    language: text/javascript
+order: 1000

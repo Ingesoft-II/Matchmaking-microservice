@@ -1,0 +1,19 @@
+$kind: http-request
+url: "{{baseUrl}}/api/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "playerId": "{{competitivePlayer}}",
+      "email": "{{competitiveEmail}}",
+      "password": "{{password}}",
+      "role": "COMPETITIVO"
+    }
+scripts:
+  - type: afterResponse
+    code: "pm.test('registro COMPETITIVO: 201', () => pm.response.to.have.status(201));"
+    language: text/javascript
+order: 3000

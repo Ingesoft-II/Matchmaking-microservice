@@ -1,0 +1,12 @@
+# Use this workspace to collaborate
+workspace:
+  id: c397770e-aa62-48f1-86d0-74081698a7c0
+
+localResources:
+  specs:
+    - ../openapi.yaml
+    - ../target/classes/static/openapi.yaml
+
+cloudResources:
+  collections:
+    ../postman/collections/Killer Protocol Matchmaking API: 1f7a0eac-69b8-41f6-a1a6-2260069aa268

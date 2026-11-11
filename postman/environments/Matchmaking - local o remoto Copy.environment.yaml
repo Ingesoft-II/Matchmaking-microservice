@@ -1,0 +1,4 @@
+name: Matchmaking - local o remoto Copy
+values:
+  - key: baseUrl
+    value: 'http://localhost:8082'

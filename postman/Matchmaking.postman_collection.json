@@ -1,0 +1,50 @@
+{
+  "info": {
+    "_postman_id": "72db7b14-cab2-4ced-a9c4-a5d920970001",
+    "name": "Killer Protocol Matchmaking API",
+    "description": "Pruebas de API en orden: registro/login, autorización 401/403, CRUD de tickets y validaciones 400. Configure baseUrl en el environment para usar cualquier host accesible.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8082" },
+    { "key": "runId", "value": "" },
+    { "key": "password", "value": "PasswordSegura123!" },
+    { "key": "casualToken", "value": "" },
+    { "key": "competitiveToken", "value": "" },
+    { "key": "moderatorToken", "value": "" },
+    { "key": "ticketId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "01 - Preparar ejecución",
+      "event": [{ "listen": "prerequest", "script": { "type": "text/javascript", "exec": ["const id = pm.variables.replaceIn('{{$guid}}').replace(/-/g, '').slice(0, 12);", "pm.collectionVariables.set('runId', id);", "pm.collectionVariables.set('casualPlayer', 'casual-' + id);", "pm.collectionVariables.set('competitivePlayer', 'comp-' + id);", "pm.collectionVariables.set('moderatorPlayer', 'mod-' + id);", "pm.collectionVariables.set('casualEmail', 'casual-' + id + '@example.com');", "pm.collectionVariables.set('competitiveEmail', 'comp-' + id + '@example.com');", "pm.collectionVariables.set('moderatorEmail', 'mod-' + id + '@example.com');"] } }],
+      "request": { "method": "GET", "url": "{{baseUrl}}/actuator/health" }
+    },
+    {
+      "name": "02 - Registrar CASUAL",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"playerId\": \"{{casualPlayer}}\",\n  \"email\": \"{{casualEmail}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"CASUAL\"\n}" }, "url": "{{baseUrl}}/api/auth/register" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('registro CASUAL: 201', () => pm.response.to.have.status(201));", "pm.test('devuelve rol y jugador', () => { const b = pm.response.json(); pm.expect(b.role).to.eql('CASUAL'); pm.expect(b.playerId).to.eql(pm.collectionVariables.get('casualPlayer')); });"] } }]
+    },
+    {
+      "name": "03 - Registrar COMPETITIVO",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"playerId\": \"{{competitivePlayer}}\",\n  \"email\": \"{{competitiveEmail}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"COMPETITIVO\"\n}" }, "url": "{{baseUrl}}/api/auth/register" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('registro COMPETITIVO: 201', () => pm.response.to.have.status(201));"] } }]
+    },
+    {
+      "name": "04 - Registrar MODERADOR",
+      "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"playerId\": \"{{moderatorPlayer}}\",\n  \"email\": \"{{moderatorEmail}}\",\n  \"password\": \"{{password}}\",\n  \"role\": \"MODERADOR\"\n}" }, "url": "{{baseUrl}}/api/auth/register" },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('registro MODERADOR: 201', () => pm.response.to.have.status(201));"] } }]
+    },
+    { "name": "05 - Login CASUAL", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{casualEmail}}\",\n  \"password\": \"{{password}}\"\n}" }, "url": "{{baseUrl}}/api/auth/login" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('login CASUAL: 200', () => pm.response.to.have.status(200));", "const b = pm.response.json(); pm.expect(b.accessToken).to.be.a('string').and.not.empty; pm.collectionVariables.set('casualToken', b.accessToken);"] } }] },
+    { "name": "06 - Login COMPETITIVO", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{competitiveEmail}}\",\n  \"password\": \"{{password}}\"\n}" }, "url": "{{baseUrl}}/api/auth/login" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('login COMPETITIVO: 200', () => pm.response.to.have.status(200));", "const b = pm.response.json(); pm.expect(b.accessToken).to.be.a('string').and.not.empty; pm.collectionVariables.set('competitiveToken', b.accessToken);"] } }] },
+    { "name": "07 - Login MODERADOR", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"email\": \"{{moderatorEmail}}\",\n  \"password\": \"{{password}}\"\n}" }, "url": "{{baseUrl}}/api/auth/login" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('login MODERADOR: 200', () => pm.response.to.have.status(200));", "const b = pm.response.json(); pm.expect(b.accessToken).to.be.a('string').and.not.empty; pm.collectionVariables.set('moderatorToken', b.accessToken);"] } }] },
+    { "name": "08 - Protegido sin token (401)", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\"playerIds\":[\"sin-token\"],\"region\":\"sa-east\",\"latencyMs\":30}" }, "url": "{{baseUrl}}/api/matchmaking/tickets/arcade" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('sin token: 401', () => pm.response.to.have.status(401));", "pm.test('error JSON', () => pm.expect(pm.response.json().error).to.be.a('string'));"] } }] },
+    { "name": "09 - Rol insuficiente (403)", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{casualToken}}" }], "body": { "mode": "raw", "raw": "{\"playerIds\":[\"{{casualPlayer}}\"],\"region\":\"sa-east\",\"latencyMs\":30}" }, "url": "{{baseUrl}}/api/matchmaking/tickets/ranked" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('rol CASUAL en Ranked: 403', () => pm.response.to.have.status(403));", "pm.test('error JSON', () => pm.expect(pm.response.json().error).to.be.a('string'));"] } }] },
+    { "name": "10 - Crear ticket arcade (201)", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{casualToken}}" }], "body": { "mode": "raw", "raw": "{\n  \"playerIds\": [\"{{casualPlayer}}\"],\n  \"region\": \"sa-east\",\n  \"latencyMs\": 30\n}" }, "url": "{{baseUrl}}/api/matchmaking/tickets/arcade" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('crear ticket: 201', () => pm.response.to.have.status(201));", "const b = pm.response.json(); pm.expect(b.id).to.be.a('string').and.not.empty; pm.expect(b.status).to.eql('WAITING'); pm.collectionVariables.set('ticketId', b.id);"] } }] },
+    { "name": "11 - Leer ticket (200)", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{casualToken}}" }], "url": "{{baseUrl}}/api/matchmaking/tickets/{{ticketId}}" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('leer ticket: 200', () => pm.response.to.have.status(200));", "pm.test('mismo ticket', () => pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('ticketId')));"] } }] },
+    { "name": "12 - Actualizar ticket (cancelar, 200)", "request": { "method": "DELETE", "header": [{ "key": "Authorization", "value": "Bearer {{casualToken}}" }], "url": "{{baseUrl}}/api/matchmaking/tickets/{{ticketId}}" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('cancelar ticket: 200', () => pm.response.to.have.status(200));", "pm.test('estado CANCELLED', () => pm.expect(pm.response.json().status).to.eql('CANCELLED'));"] } }] },
+    { "name": "13 - Datos inválidos (400)", "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "Authorization", "value": "Bearer {{casualToken}}" }], "body": { "mode": "raw", "raw": "{\n  \"playerIds\": [],\n  \"region\": \"sa-east\",\n  \"latencyMs\": -1\n}" }, "url": "{{baseUrl}}/api/matchmaking/tickets/arcade" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('datos inválidos: 400', () => pm.response.to.have.status(400));", "pm.test('error JSON', () => pm.expect(pm.response.json().error).to.be.a('string'));"] } }] },
+    { "name": "14 - Verificar ticket cancelado (200)", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{casualToken}}" }], "url": "{{baseUrl}}/api/matchmaking/tickets/{{ticketId}}" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('ticket cancelado sigue consultable: 200', () => pm.response.to.have.status(200));", "pm.test('estado CANCELLED', () => pm.expect(pm.response.json().status).to.eql('CANCELLED'));"] } }] },
+    { "name": "15 - Ciclo con moderador (200)", "request": { "method": "POST", "header": [{ "key": "Authorization", "value": "Bearer {{moderatorToken}}" }], "url": "{{baseUrl}}/api/matchmaking/cycle" }, "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('ciclo moderador: 200', () => pm.response.to.have.status(200));", "pm.test('respuesta es lista', () => pm.expect(pm.response.json()).to.be.an('array'));"] } }] }
+  ]
+}

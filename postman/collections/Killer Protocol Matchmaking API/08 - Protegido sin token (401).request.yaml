@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{baseUrl}}/api/matchmaking/tickets/arcade"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: '{"playerIds":["sin-token"],"region":"sa-east","latencyMs":30}'
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('sin token: 401', () => pm.response.to.have.status(401));
+      pm.test('error JSON', () => pm.expect(pm.response.json().error).to.be.a('string'));
+    language: text/javascript
+order: 8000
