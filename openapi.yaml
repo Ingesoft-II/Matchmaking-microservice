@@ -7,10 +7,77 @@ servers:
   - url: http://localhost:8082
     description: Servicio local
 tags:
+  - name: Auth
+    description: Registro de usuarios e inicio de sesión con JWT y Argon2
   - name: Matchmaking
     description: Operaciones de tickets, reconexión y ciclos de emparejamiento
-security: []
+security:
+  - bearerAuth: []
 paths:
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Registrar un nuevo jugador
+      description: Registra una cuenta almacenando la contraseña con hash Argon2id.
+      operationId: registerUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              playerId: player-1
+              email: player1@killerprotocol.com
+              password: PasswordSegura123!
+              role: COMPETITIVO
+      responses:
+        '201':
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAccountView'
+              example:
+                playerId: player-1
+                email: player1@killerprotocol.com
+                role: COMPETITIVO
+                createdAt: '2026-11-10T20:00:00Z'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesión y obtener un access token JWT de vida corta
+      operationId: loginUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: player1@killerprotocol.com
+              password: PasswordSegura123!
+      responses:
+        '200':
+          description: Autenticación exitosa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthToken'
+              example:
+                accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                tokenType: Bearer
+                expiresIn: 900
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
   /api/matchmaking/tickets:
     post:
       tags: [Matchmaking]
@@ -159,8 +226,74 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Esquema Bearer JWT reservado para cuando el servicio habilite autenticación.
+      description: Token de acceso JWT de vida corta emitido por POST /api/auth/login.
   schemas:
+    Role:
+      type: string
+      enum: [CASUAL, COMPETITIVO, MODERADOR]
+      example: COMPETITIVO
+    RegisterRequest:
+      type: object
+      required: [playerId, email, password, role]
+      properties:
+        playerId:
+          type: string
+          minLength: 1
+          example: player-1
+        email:
+          type: string
+          format: email
+          example: player1@killerprotocol.com
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          example: PasswordSegura123!
+        role:
+          $ref: '#/components/schemas/Role'
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: player1@killerprotocol.com
+        password:
+          type: string
+          minLength: 1
+          example: PasswordSegura123!
+    UserAccountView:
+      type: object
+      required: [playerId, email, role, createdAt]
+      properties:
+        playerId:
+          type: string
+          example: player-1
+        email:
+          type: string
+          format: email
+          example: player1@killerprotocol.com
+        role:
+          $ref: '#/components/schemas/Role'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-10T20:00:00Z'
+    AuthToken:
+      type: object
+      required: [accessToken, tokenType, expiresIn]
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        tokenType:
+          type: string
+          example: Bearer
+        expiresIn:
+          type: integer
+          format: int64
+          example: 900
     FindMatchRequest:
       type: object
       required: [playerIds, mode, region, latencyMs]
@@ -272,6 +405,14 @@ components:
             $ref: '#/components/schemas/Error'
           example:
             error: latencyMs debe ser mayor o igual a cero.
+    Unauthorized:
+      description: Credenciales inválidas o token JWT ausente/expirado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: Credenciales inválidas.
     NotFound:
       description: No se encontró el ticket o no hay partida activa para el jugador
       content:

@@ -45,3 +45,8 @@ management:
     web:
       exposure:
         include: health,info,prometheus
+
+security:
+  jwt:
+    secret: killer-protocol-default-jwt-secret-key-2026-min-32-bytes
+    expiration-sec: 900

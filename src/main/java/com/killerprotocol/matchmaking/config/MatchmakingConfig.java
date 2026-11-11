@@ -7,8 +7,12 @@ import com.killerprotocol.matchmaking.application.port.in.ReconnectUseCase;
 import com.killerprotocol.matchmaking.application.port.in.RunCycleUseCase;
 import com.killerprotocol.matchmaking.application.port.out.EventPublisher;
 import com.killerprotocol.matchmaking.application.port.out.MatchmakingStore;
+import com.killerprotocol.matchmaking.application.port.out.PasswordHasher;
 import com.killerprotocol.matchmaking.application.port.out.RatingProvider;
 import com.killerprotocol.matchmaking.application.port.out.ServerAllocator;
+import com.killerprotocol.matchmaking.application.port.out.TokenProvider;
+import com.killerprotocol.matchmaking.application.port.out.UserAccountStore;
+import com.killerprotocol.matchmaking.application.service.AuthService;
 import com.killerprotocol.matchmaking.application.service.CancelService;
 import com.killerprotocol.matchmaking.application.service.FindMatchService;
 import com.killerprotocol.matchmaking.application.service.GetTicketService;
@@ -32,6 +36,11 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class MatchmakingConfig {
+
+    @Bean
+    AuthService authService(UserAccountStore accounts, PasswordHasher passwordHasher, TokenProvider tokenProvider) {
+        return new AuthService(accounts, passwordHasher, tokenProvider);
+    }
 
     @Bean
     FindMatchUseCase findMatchUseCase(MatchmakingStore store, RatingProvider ratings) {
